@@ -1396,217 +1396,190 @@ window.genPDF=()=>{
     grandTotal:taxable+cgst+sgst+igst
   });
 };
-
-function buildPDF(inv){
-  const {jsPDF}=window.jspdf;
-  const pdf=new jsPDF({unit:'mm',format:'a4'});
-  const W=210, M=14, CW=W-2*M;
-  let y=0;
-
-  // ── HEADER BAR ──
-  pdf.setFillColor(22,52,24);
-  pdf.rect(0,0,W,42,'F');
-
-  if(isPro && cfg.logo){
-    try{ pdf.addImage(cfg.logo,'PNG',M,6,34,18); }
-    catch(e){
-      pdf.setFont('helvetica','bold'); pdf.setFontSize(16); pdf.setTextColor(168,196,74);
-      pdf.text(inv.supName||'Sentinel Invoice',M,18);
-    }
-  } else {
-    pdf.setFont('helvetica','bold'); pdf.setFontSize(16); pdf.setTextColor(168,196,74);
-    pdf.text(inv.supName||'Sentinel Invoice',M,18);
-  }
-  pdf.setFont('helvetica','normal'); pdf.setFontSize(7.5); pdf.setTextColor(160,190,120);
-  let yl=24;
-  if(inv.supGstin){ pdf.text('GSTIN: '+inv.supGstin,M,yl); yl+=5; }
-  if(inv.supPan)  { pdf.text('PAN: '+inv.supPan,M,yl); yl+=5; }
-  if(inv.supAddr) { pdf.text(inv.supAddr.split('\n').join(' ').substring(0,50),M,yl); }
-
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.setTextColor(255,255,255);
-  pdf.text('TAX INVOICE',W-M,14,{align:'right'});
-  pdf.setFont('helvetica','normal'); pdf.setFontSize(8); pdf.setTextColor(168,196,74);
-  pdf.text('No: '+inv.number,W-M,21,{align:'right'});
-  pdf.text('Date: '+inv.date,W-M,27,{align:'right'});
-  pdf.text('Due: '+inv.dueDate,W-M,33,{align:'right'});
-  const posNm = STATES.find(s=>s.code===inv.placeOfSupply)?.name||inv.placeOfSupply||'';
-  if(posNm) pdf.text('POS: '+posNm,W-M,39,{align:'right'});
-
-  y=48;
-
-  // ── BILL TO / SUPPLIER ──
-  pdf.setFillColor(240,245,235);
-  pdf.rect(M,y,CW/2-3,32,'F');
-  pdf.rect(M+CW/2+3,y,CW/2-3,32,'F');
-
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(7); pdf.setTextColor(80,110,60);
-  pdf.text('BILL TO',M+3,y+6);
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(10); pdf.setTextColor(20,30,20);
-  pdf.text((inv.custName||'').substring(0,30),M+3,y+13);
-  pdf.setFont('helvetica','normal'); pdf.setFontSize(7.5); pdf.setTextColor(60,75,55);
-  let cy=y+19;
-  if(inv.custGstin){ pdf.text('GSTIN: '+inv.custGstin,M+3,cy); cy+=5; }
-  if(inv.custAddr){
-    const lines=pdf.splitTextToSize(inv.custAddr,CW/2-10);
-    lines.slice(0,2).forEach(l=>{ pdf.text(l,M+3,cy); cy+=4; });
-  }
-  if(inv.custPhone) pdf.text(inv.custPhone,M+3,cy);
-
-  const sx=M+CW/2+6;
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(7); pdf.setTextColor(80,110,60);
-  pdf.text('SUPPLIER',sx,y+6);
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(10); pdf.setTextColor(20,30,20);
-  pdf.text((inv.supName||'').substring(0,30),sx,y+13);
-  pdf.setFont('helvetica','normal'); pdf.setFontSize(7.5); pdf.setTextColor(60,75,55);
-  let sy2=y+19;
-  if(inv.supGstin){ pdf.text('GSTIN: '+inv.supGstin,sx,sy2); sy2+=5; }
-  const stNm=STATES.find(s=>s.code===inv.supState)?.name||'';
-  if(stNm) pdf.text(stNm,sx,sy2);
-
-  y+=38;
-  pdf.setFillColor(230,240,220); pdf.rect(M,y,CW,7,'F');
-  pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(60,80,50);
-  pdf.text('Supply Type: '+(inv.supplyType||'B2B'),M+3,y+5);
-  pdf.text('Reverse Charge: '+(inv.reverseCharge==='Y'?'Yes':'No'),M+50,y+5);
-  pdf.text('Tax Type: '+(inv.isInterState?'IGST (Interstate)':'CGST+SGST (Intrastate)'),M+100,y+5);
-  y+=12;
-
-  // ── ITEMS TABLE (CRORE-STABILIZED) ──
-  const isIG=inv.isInterState;
-  const col = isIG 
-    ? { no:M+1, desc:M+7, hsn:M+68, qty:M+85, unit:M+95, taxable:M+125, gst:M+158, tot:M+194 }
-    : { no:M+1, desc:M+7, hsn:M+60, qty:M+78, unit:M+88, taxable:M+115, cgst:M+140, sgst:M+165, tot:M+194 };
-
-  const hdrs = isIG
-    ? ['#','DESCRIPTION','HSN/SAC','QTY','UNIT','TAXABLE','IGST','TOTAL']
-    : ['#','DESCRIPTION','HSN/SAC','QTY','UNIT','TAXABLE','CGST','SGST','TOTAL'];
-
-  pdf.setFillColor(22,52,24); pdf.rect(M,y,CW,8,'F');
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(6.5); pdf.setTextColor(168,196,74);
   
-  pdf.text(hdrs[0], col.no, y+5.5);
-  pdf.text(hdrs[1], col.desc, y+5.5);
-  pdf.text(hdrs[2], col.hsn, y+5.5);
-  pdf.text(hdrs[3], col.qty, y+5.5, {align:'right'});
-  pdf.text(hdrs[4], col.unit, y+5.5);
-  pdf.text(hdrs[5], col.taxable, y+5.5, {align:'right'});
-  if(isIG) {
-    pdf.text(hdrs[6], col.gst, y+5.5, {align:'right'});
-    pdf.text(hdrs[7], col.tot, y+5.5, {align:'right'});
-  } else {
-    pdf.text(hdrs[6], col.cgst, y+5.5, {align:'right'});
-    pdf.text(hdrs[7], col.sgst, y+5.5, {align:'right'});
-    pdf.text(hdrs[8], col.tot, y+5.5, {align:'right'});
-  }
-  y+=9;
+function buildPDF(inv) {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
+    const [W, M] = [210, 14]; // A4 Width and Margin
+    const CW = W - 2 * M;    // Content Width
+    let y = 0;
 
-  pdf.setFont('helvetica','normal'); pdf.setFontSize(7.5); pdf.setTextColor(20,25,20);
-  inv.items.forEach((it,idx)=>{
-    const base=(it.qty||0)*(it.rate||0);
-    const tax=base*(it.gst||0)/100;
-    const descLines = pdf.splitTextToSize(it.desc||'', isIG ? 58 : 50);
-    const rh = Math.max(8, descLines.length * 4.5);
+    // --- INTERNAL HELPERS ---
+    const setFont = (style = 'normal', size = 8, color = [20, 30, 20]) => {
+        pdf.setFont('helvetica', style);
+        pdf.setFontSize(size);
+        pdf.setTextColor(...color);
+    };
+    const drawText = (txt, x, y, align = 'left') => pdf.text(String(txt), x, y, { align });
 
-    if(idx%2===0){ pdf.setFillColor(247,251,243); pdf.rect(M,y-1,CW,rh,'F'); }
-    pdf.text(String(idx+1), col.no, y+4);
-    pdf.text(descLines, col.desc, y+4);
-    pdf.text(it.hsn||'', col.hsn, y+4);
-    pdf.text(String(it.qty||0), col.qty, y+4, {align:'right'});
-    pdf.text(it.unit||'NOS', col.unit, y+4);
-    pdf.text(fN(base), col.taxable, y+4, {align:'right'});
-
-    if(isIG){
-      pdf.text((it.gst||0)+'% '+fN(tax), col.gst, y+4, {align:'right'});
-      pdf.text(fN(base+tax), col.tot, y+4, {align:'right'});
+    // ── 1. HEADER & BRANDING ──
+    pdf.setFillColor(22, 52, 24).rect(0, 0, W, 42, 'F'); // Starc Green Bar
+    
+    // Brand Identity
+    if (isPro && cfg.logo) {
+        try { pdf.addImage(cfg.logo, 'PNG', M, 6, 34, 18); }
+        catch (e) { setFont('bold', 16, [168, 196, 74]); drawText(inv.supName || 'starc technologies', M, 18); }
     } else {
-      pdf.text((it.gst/2)+'% '+fN(tax/2), col.cgst, y+4, {align:'right'});
-      pdf.text((it.gst/2)+'% '+fN(tax/2), col.sgst, y+4, {align:'right'});
-      pdf.text(fN(base+tax), col.tot, y+4, {align:'right'});
+        setFont('bold', 16, [168, 196, 74]);
+        drawText(inv.supName || 'starc technologies', M, 18);
     }
-    y+=rh;
-    if(y>270){ pdf.addPage(); y=20; }
-  });
 
-  y+=6;
+    setFont('normal', 7.5, [160, 190, 120]);
+    let yl = 24;
+    [inv.supGstin, inv.supPan].forEach(id => { if(id) { drawText(id, M, yl); yl += 5; } });
+    if (inv.supAddr) drawText(inv.supAddr.substring(0, 60), M, yl);
 
-  // ── TOTALS ──
-  const tX=M+CW*0.55;
-  pdf.setDrawColor(180,210,160); pdf.setLineWidth(0.3);
-  pdf.line(tX,y,W-M,y); y+=5;
+    // Header Metadata (Right Aligned)
+    setFont('bold', 14, [255, 255, 255]);
+    drawText('TAX INVOICE', W - M, 14, 'right');
+    setFont('normal', 8, [168, 196, 74]);
+    const meta = [`No: ${inv.number}`, `Date: ${inv.date}`, `Due: ${inv.dueDate}`, `POS: ${STATES.find(s => s.code === inv.placeOfSupply)?.name || inv.placeOfSupply || ''}`];
+    meta.forEach((txt, i) => drawText(txt, W - M, 21 + (i * 6), 'right'));
 
-  const totRows=[
-    ['Taxable Amount', fN(inv.taxable||0)],
-    ...(isIG
-      ? [['IGST ('+( (inv.items||[]).map(i=>i.gst).filter((v,i,a)=>a.indexOf(v)===i).join('+')||'0')+'%)', fN(inv.igst||0)]]
-      : [['CGST', fN(inv.cgst||0)],['SGST', fN(inv.sgst||0)]]
-    )
-  ];
+    y = 48;
 
-  pdf.setFontSize(8.5); pdf.setFont('helvetica','normal');
-  totRows.forEach(([l,v])=>{
-    pdf.setTextColor(70,80,65); pdf.text(l,tX+2,y);
-    pdf.setTextColor(20,30,20); pdf.text(v,W-M-2,y,{align:'right'});
-    y+=6;
-  });
+    // ── 2. INFO BOXES (BILL TO / SUPPLIER) ──
+    pdf.setFillColor(240, 245, 235).rect(M, y, CW / 2 - 3, 32, 'F');
+    pdf.rect(M + CW / 2 + 3, y, CW / 2 - 3, 32, 'F');
 
-  pdf.line(tX,y,W-M,y); y+=2;
-  pdf.setFillColor(22,52,24); pdf.rect(tX,y,W-M-tX,11,'F');
-  pdf.setFont('helvetica','bold'); pdf.setFontSize(9.5); pdf.setTextColor(255,255,255);
-  pdf.text('TOTAL',tX+3,y+7.5);
-  pdf.text(fN(inv.grandTotal||0),W-M-2,y+7.5,{align:'right'});
-  y+=17;
+    setFont('bold', 7, [80, 110, 60]);
+    drawText('BILL TO', M + 3, y + 6);
+    drawText('SUPPLIER', M + CW / 2 + 6, y + 6);
 
-  pdf.setFont('helvetica','italic'); pdf.setFontSize(7.5); pdf.setTextColor(70,90,60);
-  pdf.text('Amount in Words: '+numToWords(Math.round(inv.grandTotal||0))+' Rupees Only',M,y);
-  y+=8;
+    setFont('bold', 10, [20, 30, 20]);
+    drawText((inv.custName || '').substring(0, 30), M + 3, y + 13);
+    drawText((inv.supName || '').substring(0, 30), M + CW / 2 + 6, y + 13);
 
-  if(inv.notes){
-    pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(80,110,60);
-    pdf.text('BANK & PAYMENT DETAILS',M,y); y+=5;
-    pdf.setFont('helvetica','normal'); pdf.setFontSize(8); pdf.setTextColor(50,65,45);
-    const nl=pdf.splitTextToSize(inv.notes,CW*0.55);
-    nl.forEach(l=>{ pdf.text(l,M,y); y+=4.5; });
-  }
+    setFont('normal', 7.5, [60, 75, 55]);
+    drawText(inv.custAddr || '', M + 3, y + 19);
+    drawText(inv.supState || 'Maharashtra', M + CW / 2 + 6, y + 19);
 
-  // UPI QR (Pro)
-  if(isPro && cfg.upi){
-    try{
-      const wrap=document.createElement('div');
-      wrap.style.cssText='position:fixed;left:-9999px;background:white;padding:4px';
-      document.body.appendChild(wrap);
-      new QRCode(wrap,{text:'upi://pay?pa='+cfg.upi+'&pn='+encodeURIComponent(cfg.biz||'')+'&cu=INR',width:72,height:72,colorDark:'#163414',colorLight:'#ffffff'});
-      setTimeout(()=>{
-        const img=wrap.querySelector('img');
-        if(img){
-          const qy=250; const qx=W-M-28;
-          pdf.addImage(img.src,'PNG',qx,qy,24,24);
-          pdf.setFont('helvetica','normal'); pdf.setFontSize(6.5); pdf.setTextColor(80,100,70);
-          pdf.text('Scan to Pay',qx+12,qy+26,{align:'center'});
+    y += 38;
+    pdf.setFillColor(230, 240, 220).rect(M, y, CW, 7, 'F');
+    setFont('normal', 7, [60, 80, 50]);
+    drawText(`Supply Type: B2B`, M + 3, y + 5);
+    drawText(`Tax Type: ${inv.isInterState ? 'IGST (Interstate)' : 'CGST+SGST (Intrastate)'}`, M + 100, y + 5);
+    
+    y += 12;
+
+    // ── 3. ITEMS TABLE (CRORE-STABILIZED) ──
+    const isIG = inv.isInterState;
+    const col = isIG 
+        ? { no: M+1, desc: M+7, hsn: M+82, qty: M+100, unit: M+105, taxable: M+138, gst: M+168, tot: M+200 }
+        : { no: M+1, desc: M+7, hsn: M+75, qty: M+92, unit: M+98, taxable: M+125, cgst: M+150, sgst: M+175, tot: M+200 };
+
+    pdf.setFillColor(22, 52, 24).rect(M, y, CW, 8, 'F');
+    setFont('bold', 6.5, [168, 196, 74]);
+    
+    drawText("#", col.no, y + 5.5);
+    drawText("DESCRIPTION", col.desc, y + 5.5);
+    drawText("HSN/SAC", col.hsn, y + 5.5);
+    drawText("QTY", col.qty, y + 5.5, 'right');
+    drawText("TAXABLE", col.taxable, y + 5.5, 'right');
+    if(isIG) { drawText("IGST", col.gst, y + 5.5, 'right'); }
+    else { drawText("CGST", col.cgst, y + 5.5, 'right'); drawText("SGST", col.sgst, y + 5.5, 'right'); }
+    drawText("TOTAL", col.tot, y + 5.5, 'right');
+    
+    y += 9;
+
+    // Data Loop
+    setFont('normal', 8, [20, 25, 20]);
+    inv.items.forEach((it, idx) => {
+        const taxable = (it.qty || 0) * (it.rate || 0);
+        const tax = taxable * (it.gst || 0) / 100;
+        const descLines = pdf.splitTextToSize(it.desc || 'Service Rendered', isIG ? 58 : 45);
+        const rh = Math.max(8, descLines.length * 4.5);
+
+        if (idx % 2 === 0) { pdf.setFillColor(247, 251, 243).rect(M, y - 1, CW, rh, 'F'); }
+
+        drawText(idx + 1, col.no, y + 4);
+        pdf.text(descLines, col.desc, y + 4);
+        drawText(it.hsn || '-', col.hsn, y + 4);
+        drawText(it.qty || 0, col.qty, y + 4, 'right');
+        drawText(fN(taxable), col.taxable, y + 4, 'right');
+
+        if (isIG) {
+            drawText(`${it.gst}% ${fN(tax)}`, col.gst, y + 4, 'right');
+        } else {
+            drawText(`${it.gst/2}% ${fN(tax/2)}`, col.cgst, y + 4, 'right');
+            drawText(`${it.gst/2}% ${fN(tax/2)}`, col.sgst, y + 4, 'right');
         }
-        document.body.removeChild(wrap);
-      },500);
-    }catch(e){}
-  }
+        drawText(fN(taxable + tax), col.tot, y + 4, 'right');
 
-  // SIGNATURE (Pro)
-  if(isPro && cfg.sig){
-    try{
-      const sigX=W-M-52; const sigY=252;
-      pdf.setFontSize(7); pdf.text('For '+(inv.supName||'').substring(0,25),sigX,sigY);
-      pdf.addImage(cfg.sig,'PNG',sigX,sigY+2,46,16);
-      pdf.line(sigX,sigY+20,W-M,sigY+20);
-      pdf.text('Authorised Signatory',sigX,sigY+24);
-    }catch(e){}
-  }
+        y += rh;
+        if (y > 270) { pdf.addPage(); y = 20; }
+    });
 
-  // FOOTER
-  pdf.setFillColor(232,242,224); pdf.rect(0,285,W,12,'F');
-  pdf.setFontSize(7); pdf.setTextColor(80,110,60);
-  const footerTxt = isPro ? (inv.supName||'Sentinel Invoice') : 'Generated free by Sentinel Invoice | invoice.starc-solutions.tech';
-  pdf.text(footerTxt+' | Powered by S.T.A.R.C. Tech',W/2,292,{align:'center'});
+    // ── 4. SUMMARY ──
+    y += 6;
+    const tX = M + CW * 0.55;
+    pdf.setDrawColor(180, 210, 160).line(tX, y, W - M, y); y += 6;
+    
+    setFont('normal', 8.5, [70, 80, 65]);
+    drawText("Taxable Amount:", tX + 2, y);
+    drawText(fN(inv.taxable), W - M - 2, y, 'right');
+    
+    if(!isIG) {
+        y += 6; drawText("CGST:", tX + 2, y); drawText(fN(inv.cgst), W - M - 2, y, 'right');
+        y += 6; drawText("SGST:", tX + 2, y); drawText(fN(inv.sgst), W - M - 2, y, 'right');
+    } else {
+        y += 6; drawText(`IGST (${inv.items[0]?.gst}%):`, tX + 2, y); drawText(fN(inv.igst), W - M - 2, y, 'right');
+    }
 
-  pdf.save((inv.number||'invoice')+'_'+(inv.custName||'customer').replace(/\s+/g,'_')+'.pdf');
-  toast('PDF downloaded!');
+    y += 6;
+    pdf.setFillColor(22, 52, 24).rect(tX, y, W - M - tX, 11, 'F');
+    setFont('bold', 10.5, [255, 255, 255]);
+    drawText('TOTAL', tX + 3, y + 7.5);
+    drawText(fmt(inv.grandTotal), W - M - 2, y + 7.5, 'right');
+
+    y += 18;
+    setFont('italic', 7.5, [70, 90, 60]);
+    drawText(`Amount in Words: ${numToWords(Math.round(inv.grandTotal))} Rupees Only`, M, y);
+
+    // ── 5. ASYNC MODULES (UPI & SIG) ──
+    if (inv.notes) {
+        y += 10; setFont('bold', 7.5, [80, 110, 60]); drawText('BANK & PAYMENT DETAILS:', M, y);
+        y += 5; setFont('normal', 8, [50, 65, 45]);
+        const nl = pdf.splitTextToSize(inv.notes, CW * 0.55);
+        nl.forEach(l => { drawText(l, M, y); y += 4.5; });
+    }
+
+    if (isPro && cfg.upi) {
+        const upiUri = `upi://pay?pa=${cfg.upi}&pn=${encodeURIComponent(cfg.biz || 'STARC Tech')}&cu=INR&am=${inv.grandTotal.toFixed(2)}`;
+        const qrWrapper = document.body.appendChild(document.createElement('div'));
+        qrWrapper.style.cssText = 'position:fixed; left:-999px;';
+        new QRCode(qrWrapper, { text: upiUri, width: 128, height: 128, correctLevel: QRCode.CorrectLevel.H });
+        
+        setTimeout(() => {
+            const qrImg = qrWrapper.querySelector('img');
+            if (qrImg) {
+                pdf.addImage(qrImg.src, 'PNG', W - M - 32, 242, 30, 30);
+                setFont('bold', 7, [22, 52, 24]);
+                drawText('SCAN TO PAY', W - M - 17, 276, 'center');
+            }
+            document.body.removeChild(qrWrapper);
+        }, 300);
+    }
+
+    if (isPro && cfg.sig) {
+        const sigX = W - M - 52;
+        pdf.addImage(cfg.sig, 'PNG', sigX, 252, 46, 16);
+        pdf.setDrawColor(150, 170, 130).line(sigX, 272, W - M, 272);
+        setFont('normal', 7, [80, 100, 70]);
+        drawText('Authorised Signatory', sigX, 276);
+    }
+
+    // ── 6. FOOTER ──
+    pdf.setFillColor(232, 242, 224).rect(0, 285, W, 12, 'F');
+    setFont('normal', 7, [80, 110, 60]);
+    const footerTxt = isPro ? (inv.supName || 'starc technologies') : 'Generated free by Sentinel Invoice';
+    drawText(`${footerTxt} | invoice.starc-solutions.tech | Powered by S.T.A.R.C. Tech`, W / 2, 292, 'center');
+
+    // ── SAVE FILENAME SANITATION ──
+    const safeInvNo = (inv.number || 'INV').replace(/[^a-z0-9]/gi, '-');
+    const safeCust = (inv.custName || 'customer').replace(/[^a-z0-9]/gi, '_');
+    pdf.save(`${safeInvNo}_${safeCust}.pdf`);
+    toast('✅ Sentinel Broadcast Complete');
 }
 
 /* ══════════════════════════════════════
