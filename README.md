@@ -46,5 +46,5 @@ This repository is optimized for GitHub Pages deployment via the **STARC-resolut
 
  🏛️ About S.T.A.R.C. Tech
 
-Developed by **Sarvesh Santosh Dhaifule** as part of the S.T.A.R.C. Tech (Sarvesh's Technical Assistant & Research Companion) initiative. Based in Pune, Maharashtra, this conglomerate is dedicated to integrating advanced AI systems with high-end infrastructure and industrial tech.
+Developed by **Sarvesh Santosh Doiphode** as part of the S.T.A.R.C. Tech (Sarvesh's Technical Assistant & Research Companion) initiative. Based in Pune, Maharashtra, this conglomerate is dedicated to integrating advanced AI systems with high-end infrastructure and industrial tech.
 
