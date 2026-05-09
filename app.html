@@ -325,7 +325,7 @@ tbody tr:hover td{background:rgba(127,168,50,.02);}
     </div>
     <div class="pro-bar" id="proBnr">
       <p>🚀 Unlimited invoices, no watermark, logo + signature on PDF</p>
-      <button onclick="openUpg()">Upgrade — ₹499/mo</button>
+      <button onclick="openUpg()">Upgrade — ₹99/mo</button>
     </div>
     <div class="nav" onclick="doOut()" style="color:var(--muted)"><span class="ni">🚪</span>Sign Out</div>
   </div>
@@ -1156,76 +1156,88 @@ function initForm(){
 }
 
 /* ══════════════════════════════════════
-   ITEMS RENDERING
+    ITEMS RENDERING (S.T.A.R.C. Optimized)
 ══════════════════════════════════════ */
 function renderItms(){
-  const isIG=isInterState;
-  H('itmBody', items.map((it,i)=>{
-    const taxable=(it.qty||0)*(it.rate||0);
-    const gstAmt=taxable*(it.gst||0)/100;
-    const half=gstAmt/2;
+  const isIG = isInterState;
+  H('itmBody', items.map((it, i) => {
+    const taxable = (it.qty || 0) * (it.rate || 0);
+    const gstAmt = taxable * (it.gst || 0) / 100;
+    const half = gstAmt / 2;
     const taxCell = isIG
       ? `<span style="color:var(--gold)">IGST: ₹${fN(gstAmt)}</span>`
       : `CGST: ₹${fN(half)}<br>SGST: ₹${fN(half)}`;
-    const total=taxable+gstAmt;
-    // Catalog dropdown options
-    const catOpts=catalog.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    const total = taxable + gstAmt;
+    const catOpts = catalog.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
-    return `<tr>
+    return `<tr data-index="${i}">
       <td style="min-width:180px">
-        <input type="text" value="${esc(it.desc)}" placeholder="Description…" oninput="items[${i}].desc=this.value;calcTotals()" onblur="renderItms()"/>
-        ${catalog.length?`<select onchange="fillCatItm(${i},this.value)" style="margin-top:4px;font-size:11px"><option value="">📦 From catalog…</option>${catOpts}</select>`:''}
+        <input type="text" value="${esc(it.desc)}" placeholder="Description…" oninput="items[${i}].desc=this.value" onblur="renderItms()"/>
+        ${catalog.length ? `<select onchange="fillCatItm(${i},this.value)" style="margin-top:4px;font-size:11px"><option value="">📦 From catalog…</option>${catOpts}</select>` : ''}
       </td>
       <td><input type="text" value="${esc(it.hsn)}" placeholder="998314" maxlength="8" style="font-family:'JetBrains Mono',monospace;font-size:11.5px" oninput="items[${i}].hsn=this.value"/></td>
-      <td><input type="number" value="${it.qty}" min="0.01" step="0.01" style="text-align:center" oninput="items[${i}].qty=+this.value;calcTotals()"/></td>
-      <td><select onchange="ui(${i},'unit',this.value)">${UNITS.map(u=>`<option value="${u}" ${u===it.unit?'selected':''}>${u}</option>`).join('')}</select></td>
-      <td><input type="number" value="${it.rate}" min="0" step="0.01" oninput="items[${i}].rate=+this.value;calcTotals()"/></td>
-      <td><select onchange="ui(${i},'gst',+this.value)">
-        ${[0,5,12,18,28].map(g=>`<option value="${g}" ${g===it.gst?'selected':''}>${g}%</option>`).join('')}
+      <td><input type="number" class="qty-input" value="${it.qty}" min="0.01" step="0.01" style="text-align:center" oninput="updateRowMath(this, ${i}, 'qty')"/></td>
+      <td><select onchange="ui(${i},'unit',this.value)">${UNITS.map(u => `<option value="${u}" ${u === it.unit ? 'selected' : ''}>${u}</option>`).join('')}</select></td>
+      <td><input type="number" class="rate-input" value="${it.rate}" min="0" step="0.01" oninput="updateRowMath(this, ${i}, 'rate')"/></td>
+      <td><select class="gst-input" onchange="updateRowMath(this, ${i}, 'gst', this.value)">
+        ${[0, 5, 12, 18, 28].map(g => `<option value="${g}" ${g === it.gst ? 'selected' : ''}>${g}%</option>`).join('')}
       </select></td>
-      <td><div class="tax-cell">${fmt(taxable)}</div></td>
-      <td><div class="tax-cell" style="font-size:10.5px;line-height:1.6">${taxCell}</div></td>
-      <td><div class="tot-cell">${fmt(total)}</div></td>
+      <td><div class="tax-cell taxable-display">${fN(taxable)}</div></td>
+      <td><div class="tax-cell row-gst-display" style="font-size:10.5px;line-height:1.6">${taxCell}</div></td>
+      <td><div class="tot-cell total-display">${fN(total)}</div></td>
       <td><div class="ib" onclick="rmItm(${i})" title="Remove">✕</div></td>
     </tr>`;
   }).join(''));
   calcTotals();
 }
 
-window.ui=(i,k,v)=>{
-  items[i][k]=v;
-  // Only re-render totals for numeric fields, not text fields
-  if(k==='qty'||k==='rate'||k==='gst') calcTotals();
-};
-// Full re-render only when needed (blur event)
-window.uiBlur=(i,k,v)=>{items[i][k]=v; renderItms();};
-window.addItm=()=>{items.push({desc:'',hsn:'',qty:1,unit:'NOS',rate:0,gst:parseInt(cfg.dgst||'18')});renderItms();};
-window.rmItm=i=>{if(items.length>1){items.splice(i,1);renderItms();}};
+window.updateRowMath = (input, i, key, val) => {
+    const value = val !== undefined ? parseFloat(val) : parseFloat(input.value) || 0;
+    items[i][key] = value;
+    const row = input.closest('tr');
+    const it = items[i];
+    const taxable = (it.qty || 0) * (it.rate || 0);
+    const gstAmt = taxable * (it.gst || 0) / 100;
+    const total = taxable + gstAmt;
 
-window.fillCatItm=(rowIdx,catId)=>{
-  const c=catalog.find(x=>x.id===catId); if(!c) return;
-  items[rowIdx]={...items[rowIdx],desc:c.name,hsn:c.hsn||'',rate:c.rate||0,gst:c.gst||18,unit:c.unit||'NOS'};
-  renderItms();
+    const taxDisp = row.querySelector('.taxable-display');
+    const totDisp = row.querySelector('.total-display');
+    const gstDisp = row.querySelector('.row-gst-display');
+
+    if (taxDisp) taxDisp.innerText = fN(taxable);
+    if (totDisp) totDisp.innerText = fN(total);
+    if (gstDisp) {
+        const half = gstAmt / 2;
+        gstDisp.innerHTML = isInterState
+            ? `<span style="color:var(--gold)">IGST: ₹${fN(gstAmt)}</span>`
+            : `CGST: ₹${fN(half)}<br>SGST: ₹${fN(half)}`;
+    }
+    calcTotals();
 };
+
 
 /* ══════════════════════════════════════
-   TOTALS
+    TOTALS & CALCULATIONS
 ══════════════════════════════════════ */
 function calcTotals(){
-  let taxable=0,cgst=0,sgst=0,igst=0;
-  items.forEach(it=>{
-    const base=(it.qty||0)*(it.rate||0);
-    taxable+=base;
-    const tax=base*(it.gst||0)/100;
-    if(isInterState){ igst+=tax; }
-    else { cgst+=tax/2; sgst+=tax/2; }
+  let taxable = 0, cgst = 0, sgst = 0, igst = 0;
+  items.forEach(it => {
+    const base = (it.qty || 0) * (it.rate || 0);
+    taxable += base;
+    const tax = base * (it.gst || 0) / 100;
+    if (isInterState) { igst += tax; }
+    else { cgst += tax / 2; sgst += tax / 2; }
   });
-  const grand=taxable+cgst+sgst+igst;
-  H('tTax',fmt(taxable));
-  H('tCgst',fmt(cgst)); H('tSgst',fmt(sgst)); H('tIgst',fmt(igst));
-  H('tGrand',fmt(grand));
-  H('tWords',numToWords(Math.round(grand))+' Rupees Only');
+  const grand = taxable + cgst + sgst + igst;
+  H('tTax', fmt(taxable));
+  H('tCgst', fmt(cgst)); H('tSgst', fmt(sgst)); H('tIgst', fmt(igst));
+  H('tGrand', fmt(grand));
+  H('tWords', numToWords(Math.round(grand)) + ' Rupees Only');
 }
+
+window.ui=(i,k,v)=>{ items[i][k]=v; if(k==='qty'||k==='rate'||k==='gst') calcTotals(); };
+window.addItm=()=>{items.push({desc:'',hsn:'',qty:1,unit:'NOS',rate:0,gst:18});renderItms();};
+window.rmItm=i=>{if(items.length>1){items.splice(i,1);renderItms();}};
 
 /* ══════════════════════════════════════
    AI DESCRIPTIONS
