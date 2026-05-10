@@ -1400,8 +1400,8 @@ window.genPDF=()=>{
 function buildPDF(inv) {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
-    const [W, M] = [210, 14]; // A4 Width and Margin
-    const CW = W - 2 * M;    // Content Width
+    const [W, M] = [210, 14];
+    const CW = W - 2 * M;
     let y = 0;
 
     // --- INTERNAL HELPERS ---
@@ -1413,23 +1413,16 @@ function buildPDF(inv) {
     const drawText = (txt, x, y, align = 'left') => pdf.text(String(txt), x, y, { align });
 
     // ── 1. HEADER & BRANDING ──
-    pdf.setFillColor(22, 52, 24).rect(0, 0, W, 42, 'F'); // Starc Green Bar
+    pdf.setFillColor(22, 52, 24).rect(0, 0, W, 42, 'F');
     
-    // Brand Identity
-    if (isPro && cfg.logo) {
-        try { pdf.addImage(cfg.logo, 'PNG', M, 6, 34, 18); }
-        catch (e) { setFont('bold', 16, [168, 196, 74]); drawText(inv.supName || 'starc technologies', M, 18); }
-    } else {
-        setFont('bold', 16, [168, 196, 74]);
-        drawText(inv.supName || 'starc technologies', M, 18);
-    }
+    setFont('bold', 16, [168, 196, 74]);
+    drawText(inv.supName || 'starc technologies', M, 18);
 
     setFont('normal', 7.5, [160, 190, 120]);
     let yl = 24;
     [inv.supGstin, inv.supPan].forEach(id => { if(id) { drawText(id, M, yl); yl += 5; } });
     if (inv.supAddr) drawText(inv.supAddr.substring(0, 60), M, yl);
 
-    // Header Metadata (Right Aligned)
     setFont('bold', 14, [255, 255, 255]);
     drawText('TAX INVOICE', W - M, 14, 'right');
     setFont('normal', 8, [168, 196, 74]);
@@ -1438,18 +1431,15 @@ function buildPDF(inv) {
 
     y = 48;
 
-    // ── 2. INFO BOXES (BILL TO / SUPPLIER) ──
+    // ── 2. INFO BOXES ──
     pdf.setFillColor(240, 245, 235).rect(M, y, CW / 2 - 3, 32, 'F');
     pdf.rect(M + CW / 2 + 3, y, CW / 2 - 3, 32, 'F');
-
     setFont('bold', 7, [80, 110, 60]);
     drawText('BILL TO', M + 3, y + 6);
     drawText('SUPPLIER', M + CW / 2 + 6, y + 6);
-
     setFont('bold', 10, [20, 30, 20]);
     drawText((inv.custName || '').substring(0, 30), M + 3, y + 13);
     drawText((inv.supName || '').substring(0, 30), M + CW / 2 + 6, y + 13);
-
     setFont('normal', 7.5, [60, 75, 55]);
     drawText(inv.custAddr || '', M + 3, y + 19);
     drawText(inv.supState || 'Maharashtra', M + CW / 2 + 6, y + 19);
@@ -1457,77 +1447,71 @@ function buildPDF(inv) {
     y += 38;
     pdf.setFillColor(230, 240, 220).rect(M, y, CW, 7, 'F');
     setFont('normal', 7, [60, 80, 50]);
-    drawText(`Supply Type: B2B`, M + 3, y + 5);
-    drawText(`Tax Type: ${inv.isInterState ? 'IGST (Interstate)' : 'CGST+SGST (Intrastate)'}`, M + 100, y + 5);
+    drawText(`Tax Type: ${inv.isInterState ? 'IGST (Interstate)' : 'CGST+SGST (Intrastate)'}`, M + 3, y + 5);
     
     y += 12;
 
     // ── 3. ITEMS TABLE (CRORE-STABILIZED) ──
     const isIG = inv.isInterState;
+    // Coordinates adjusted for maximum numeric clearance
     const col = isIG 
-        ? { no: M+1, desc: M+7, hsn: M+82, qty: M+100, unit: M+105, taxable: M+138, gst: M+168, tot: M+200 }
-        : { no: M+1, desc: M+7, hsn: M+75, qty: M+92, unit: M+98, taxable: M+125, cgst: M+150, sgst: M+175, tot: M+200 };
+        ? { no: M+1, desc: M+7, hsn: M+75, qty: M+90, taxable: M+130, gst: M+165, tot: M+200 }
+        : { no: M+1, desc: M+7, hsn: M+68, qty: M+82, taxable: M+115, cgst: M+142, sgst: M+170, tot: M+200 };
 
     pdf.setFillColor(22, 52, 24).rect(M, y, CW, 8, 'F');
     setFont('bold', 6.5, [168, 196, 74]);
-    
     drawText("#", col.no, y + 5.5);
     drawText("DESCRIPTION", col.desc, y + 5.5);
-    drawText("HSN/SAC", col.hsn, y + 5.5);
     drawText("QTY", col.qty, y + 5.5, 'right');
     drawText("TAXABLE", col.taxable, y + 5.5, 'right');
-    if(isIG) { drawText("IGST", col.gst, y + 5.5, 'right'); }
+    if(isIG) drawText("IGST", col.gst, y + 5.5, 'right');
     else { drawText("CGST", col.cgst, y + 5.5, 'right'); drawText("SGST", col.sgst, y + 5.5, 'right'); }
     drawText("TOTAL", col.tot, y + 5.5, 'right');
     
     y += 9;
 
-    // Data Loop
     setFont('normal', 8, [20, 25, 20]);
     inv.items.forEach((it, idx) => {
-        const taxable = (it.qty || 0) * (it.rate || 0);
-        const tax = taxable * (it.gst || 0) / 100;
-        const descLines = pdf.splitTextToSize(it.desc || 'Service Rendered', isIG ? 58 : 45);
+        const base = (it.qty || 0) * (it.rate || 0);
+        const tax = base * (it.gst || 0) / 100;
+        // Fix: Better description detection
+        const dText = (it.desc && it.desc.trim()) ? it.desc : 'Service Rendered';
+        const descLines = pdf.splitTextToSize(dText, isIG ? 55 : 45);
         const rh = Math.max(8, descLines.length * 4.5);
 
         if (idx % 2 === 0) { pdf.setFillColor(247, 251, 243).rect(M, y - 1, CW, rh, 'F'); }
-
         drawText(idx + 1, col.no, y + 4);
         pdf.text(descLines, col.desc, y + 4);
-        drawText(it.hsn || '-', col.hsn, y + 4);
         drawText(it.qty || 0, col.qty, y + 4, 'right');
-        drawText(fN(taxable), col.taxable, y + 4, 'right');
+        drawText(fN(base), col.taxable, y + 4, 'right');
 
-        if (isIG) {
-            drawText(`${it.gst}% ${fN(tax)}`, col.gst, y + 4, 'right');
-        } else {
-            drawText(`${it.gst/2}% ${fN(tax/2)}`, col.cgst, y + 4, 'right');
-            drawText(`${it.gst/2}% ${fN(tax/2)}`, col.sgst, y + 4, 'right');
+        if (isIG) drawText(`${it.gst}% ${fN(tax)}`, col.gst, y + 4, 'right');
+        else { 
+            drawText(`${it.gst/2}% ${fN(tax/2)}`, col.cgst, y + 4, 'right'); 
+            drawText(`${it.gst/2}% ${fN(tax/2)}`, col.sgst, y + 4, 'right'); 
         }
-        drawText(fN(taxable + tax), col.tot, y + 4, 'right');
+        drawText(fN(base + tax), col.tot, y + 4, 'right');
 
         y += rh;
         if (y > 270) { pdf.addPage(); y = 20; }
     });
 
-    // ── 4. SUMMARY ──
+    // ── 4. SUMMARY (FIXED BOX & OVERFLOW) ──
     y += 6;
-    const tX = M + CW * 0.55;
+    const tX = M + CW * 0.45; // Wider box for Lakhs/Crores
+    const tW = W - M - tX;
     pdf.setDrawColor(180, 210, 160).line(tX, y, W - M, y); y += 6;
     
     setFont('normal', 8.5, [70, 80, 65]);
     drawText("Taxable Amount:", tX + 2, y);
     drawText(fN(inv.taxable), W - M - 2, y, 'right');
     
-    if(!isIG) {
-        y += 6; drawText("CGST:", tX + 2, y); drawText(fN(inv.cgst), W - M - 2, y, 'right');
-        y += 6; drawText("SGST:", tX + 2, y); drawText(fN(inv.sgst), W - M - 2, y, 'right');
-    } else {
-        y += 6; drawText(`IGST (${inv.items[0]?.gst}%):`, tX + 2, y); drawText(fN(inv.igst), W - M - 2, y, 'right');
-    }
+    y += 6;
+    drawText(isIG ? "IGST:" : "CGST+SGST:", tX + 2, y);
+    drawText(fN(isIG ? inv.igst : (inv.cgst + inv.sgst)), W - M - 2, y, 'right');
 
     y += 6;
-    pdf.setFillColor(22, 52, 24).rect(tX, y, W - M - tX, 11, 'F');
+    pdf.setFillColor(22, 52, 24).rect(tX, y, tW, 11, 'F'); // Green Total Box
     setFont('bold', 10.5, [255, 255, 255]);
     drawText('TOTAL', tX + 3, y + 7.5);
     drawText(fmt(inv.grandTotal), W - M - 2, y + 7.5, 'right');
@@ -1545,37 +1529,29 @@ function buildPDF(inv) {
     }
 
     if (isPro && cfg.upi) {
-        const upiUri = `upi://pay?pa=${cfg.upi}&pn=${encodeURIComponent(cfg.biz || 'STARC Tech')}&cu=INR&am=${inv.grandTotal.toFixed(2)}`;
+        const upiUri = `upi://pay?pa=${cfg.upi}&pn=${encodeURIComponent(cfg.biz || 'STARC')}&cu=INR&am=${inv.grandTotal.toFixed(2)}`;
         const qrWrapper = document.body.appendChild(document.createElement('div'));
         qrWrapper.style.cssText = 'position:fixed; left:-999px;';
         new QRCode(qrWrapper, { text: upiUri, width: 128, height: 128, correctLevel: QRCode.CorrectLevel.H });
-        
         setTimeout(() => {
             const qrImg = qrWrapper.querySelector('img');
-            if (qrImg) {
-                pdf.addImage(qrImg.src, 'PNG', W - M - 32, 242, 30, 30);
-                setFont('bold', 7, [22, 52, 24]);
-                drawText('SCAN TO PAY', W - M - 17, 276, 'center');
-            }
+            if (qrImg) pdf.addImage(qrImg.src, 'PNG', W - M - 32, 242, 30, 30);
             document.body.removeChild(qrWrapper);
         }, 300);
     }
 
     if (isPro && cfg.sig) {
-        const sigX = W - M - 52;
-        pdf.addImage(cfg.sig, 'PNG', sigX, 252, 46, 16);
-        pdf.setDrawColor(150, 170, 130).line(sigX, 272, W - M, 272);
+        pdf.addImage(cfg.sig, 'PNG', W - M - 52, 252, 46, 16);
         setFont('normal', 7, [80, 100, 70]);
-        drawText('Authorised Signatory', sigX, 276);
+        drawText('Authorised Signatory', W - M - 52, 276);
     }
 
-    // ── 6. FOOTER ──
+    // ── 6. FOOTER & SAVE ──
     pdf.setFillColor(232, 242, 224).rect(0, 285, W, 12, 'F');
     setFont('normal', 7, [80, 110, 60]);
-    const footerTxt = isPro ? (inv.supName || 'starc technologies') : 'Generated free by Sentinel Invoice';
-    drawText(`${footerTxt} | invoice.starc-solutions.tech | Powered by S.T.A.R.C. Tech`, W / 2, 292, 'center');
+    const fTxt = isPro ? (inv.supName || 'starc technologies') : 'Generated free by Sentinel Invoice';
+    drawText(`${fTxt} | invoice.starc-solutions.tech | Powered by S.T.A.R.C. Tech`, W / 2, 292, 'center');
 
-    // ── SAVE FILENAME SANITATION ──
     const safeInvNo = (inv.number || 'INV').replace(/[^a-z0-9]/gi, '-');
     const safeCust = (inv.custName || 'customer').replace(/[^a-z0-9]/gi, '_');
     pdf.save(`${safeInvNo}_${safeCust}.pdf`);
