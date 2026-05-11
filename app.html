@@ -325,7 +325,7 @@ tbody tr:hover td{background:rgba(127,168,50,.02);}
     </div>
     <div class="pro-bar" id="proBnr">
       <p>🚀 Unlimited invoices, no watermark, logo + signature on PDF</p>
-      <button onclick="openUpg()">Upgrade — ₹99/mo</button>
+      <button onclick="openUpg()">Upgrade — ₹499/mo</button>
     </div>
     <div class="nav" onclick="doOut()" style="color:var(--muted)"><span class="ni">🚪</span>Sign Out</div>
   </div>
@@ -738,6 +738,7 @@ tbody tr:hover td{background:rgba(127,168,50,.02);}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js" async></script>
 <script>
+
 // Firebase compat SDK loaded above — firebase is now globally available
 window.addEventListener('DOMContentLoaded', function() {
 
@@ -745,12 +746,12 @@ window.addEventListener('DOMContentLoaded', function() {
    ►  YOUR FIREBASE CONFIG
 ═══════════════════════════════════════ */
 const FB = {
-  apiKey:             "AIzaSyCjVZ3BUVVz3fD2fbK2vwo7ugA47e4ZCm4",
+  apiKey:            "AIzaSyCjVZ3BUVVz3fD2fbK2vwo7ugA47e4ZCm4",
   authDomain:        "starc-invoice.firebaseapp.com",
   projectId:         "starc-invoice",
-  storageBucket:      "starc-invoice.firebasestorage.app",
-  messagingSenderId:  "370202874783",
-  appId:             "1:370202874783:web:b2668e28ec24319178a3aa",
+  storageBucket:     "starc-invoice.firebasestorage.app",
+  messagingSenderId: "370202874783",
+  appId:              "1:370202874783:web:b2668e28ec24319178a3aa",
 };
 /* ═══════════════════════════════════════
    ►  YOUR RAZORPAY KEY_ID
@@ -1156,88 +1157,76 @@ function initForm(){
 }
 
 /* ══════════════════════════════════════
-    ITEMS RENDERING (S.T.A.R.C. Optimized)
+   ITEMS RENDERING
 ══════════════════════════════════════ */
 function renderItms(){
-  const isIG = isInterState;
-  H('itmBody', items.map((it, i) => {
-    const taxable = (it.qty || 0) * (it.rate || 0);
-    const gstAmt = taxable * (it.gst || 0) / 100;
-    const half = gstAmt / 2;
+  const isIG=isInterState;
+  H('itmBody', items.map((it,i)=>{
+    const taxable=(it.qty||0)*(it.rate||0);
+    const gstAmt=taxable*(it.gst||0)/100;
+    const half=gstAmt/2;
     const taxCell = isIG
       ? `<span style="color:var(--gold)">IGST: ₹${fN(gstAmt)}</span>`
       : `CGST: ₹${fN(half)}<br>SGST: ₹${fN(half)}`;
-    const total = taxable + gstAmt;
-    const catOpts = catalog.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    const total=taxable+gstAmt;
+    // Catalog dropdown options
+    const catOpts=catalog.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
 
-    return `<tr data-index="${i}">
+    return `<tr>
       <td style="min-width:180px">
-        <input type="text" value="${esc(it.desc)}" placeholder="Description…" oninput="items[${i}].desc=this.value" onblur="renderItms()"/>
-        ${catalog.length ? `<select onchange="fillCatItm(${i},this.value)" style="margin-top:4px;font-size:11px"><option value="">📦 From catalog…</option>${catOpts}</select>` : ''}
+        <input type="text" value="${esc(it.desc)}" placeholder="Description…" oninput="items[${i}].desc=this.value;calcTotals()" onblur="renderItms()"/>
+        ${catalog.length?`<select onchange="fillCatItm(${i},this.value)" style="margin-top:4px;font-size:11px"><option value="">📦 From catalog…</option>${catOpts}</select>`:''}
       </td>
       <td><input type="text" value="${esc(it.hsn)}" placeholder="998314" maxlength="8" style="font-family:'JetBrains Mono',monospace;font-size:11.5px" oninput="items[${i}].hsn=this.value"/></td>
-      <td><input type="number" class="qty-input" value="${it.qty}" min="0.01" step="0.01" style="text-align:center" oninput="updateRowMath(this, ${i}, 'qty')"/></td>
-      <td><select onchange="ui(${i},'unit',this.value)">${UNITS.map(u => `<option value="${u}" ${u === it.unit ? 'selected' : ''}>${u}</option>`).join('')}</select></td>
-      <td><input type="number" class="rate-input" value="${it.rate}" min="0" step="0.01" oninput="updateRowMath(this, ${i}, 'rate')"/></td>
-      <td><select class="gst-input" onchange="updateRowMath(this, ${i}, 'gst', this.value)">
-        ${[0, 5, 12, 18, 28].map(g => `<option value="${g}" ${g === it.gst ? 'selected' : ''}>${g}%</option>`).join('')}
+      <td><input type="number" value="${it.qty}" min="0.01" step="0.01" style="text-align:center" oninput="items[${i}].qty=+this.value;calcTotals()"/></td>
+      <td><select onchange="ui(${i},'unit',this.value)">${UNITS.map(u=>`<option value="${u}" ${u===it.unit?'selected':''}>${u}</option>`).join('')}</select></td>
+      <td><input type="number" value="${it.rate}" min="0" step="0.01" oninput="items[${i}].rate=+this.value;calcTotals()"/></td>
+      <td><select onchange="ui(${i},'gst',+this.value)">
+        ${[0,5,12,18,28].map(g=>`<option value="${g}" ${g===it.gst?'selected':''}>${g}%</option>`).join('')}
       </select></td>
-      <td><div class="tax-cell taxable-display">${fN(taxable)}</div></td>
-      <td><div class="tax-cell row-gst-display" style="font-size:10.5px;line-height:1.6">${taxCell}</div></td>
-      <td><div class="tot-cell total-display">${fN(total)}</div></td>
+      <td><div class="tax-cell">${fmt(taxable)}</div></td>
+      <td><div class="tax-cell" style="font-size:10.5px;line-height:1.6">${taxCell}</div></td>
+      <td><div class="tot-cell">${fmt(total)}</div></td>
       <td><div class="ib" onclick="rmItm(${i})" title="Remove">✕</div></td>
     </tr>`;
   }).join(''));
   calcTotals();
 }
 
-window.updateRowMath = (input, i, key, val) => {
-    const value = val !== undefined ? parseFloat(val) : parseFloat(input.value) || 0;
-    items[i][key] = value;
-    const row = input.closest('tr');
-    const it = items[i];
-    const taxable = (it.qty || 0) * (it.rate || 0);
-    const gstAmt = taxable * (it.gst || 0) / 100;
-    const total = taxable + gstAmt;
+window.ui=(i,k,v)=>{
+  items[i][k]=v;
+  // Only re-render totals for numeric fields, not text fields
+  if(k==='qty'||k==='rate'||k==='gst') calcTotals();
+};
+// Full re-render only when needed (blur event)
+window.uiBlur=(i,k,v)=>{items[i][k]=v; renderItms();};
+window.addItm=()=>{items.push({desc:'',hsn:'',qty:1,unit:'NOS',rate:0,gst:parseInt(cfg.dgst||'18')});renderItms();};
+window.rmItm=i=>{if(items.length>1){items.splice(i,1);renderItms();}};
 
-    const taxDisp = row.querySelector('.taxable-display');
-    const totDisp = row.querySelector('.total-display');
-    const gstDisp = row.querySelector('.row-gst-display');
-
-    if (taxDisp) taxDisp.innerText = fN(taxable);
-    if (totDisp) totDisp.innerText = fN(total);
-    if (gstDisp) {
-        const half = gstAmt / 2;
-        gstDisp.innerHTML = isInterState
-            ? `<span style="color:var(--gold)">IGST: ₹${fN(gstAmt)}</span>`
-            : `CGST: ₹${fN(half)}<br>SGST: ₹${fN(half)}`;
-    }
-    calcTotals();
+window.fillCatItm=(rowIdx,catId)=>{
+  const c=catalog.find(x=>x.id===catId); if(!c) return;
+  items[rowIdx]={...items[rowIdx],desc:c.name,hsn:c.hsn||'',rate:c.rate||0,gst:c.gst||18,unit:c.unit||'NOS'};
+  renderItms();
 };
 
-
 /* ══════════════════════════════════════
-    TOTALS & CALCULATIONS
+   TOTALS
 ══════════════════════════════════════ */
 function calcTotals(){
-  let taxable = 0, cgst = 0, sgst = 0, igst = 0;
-  items.forEach(it => {
-    const base = (it.qty || 0) * (it.rate || 0);
-    taxable += base;
-    const tax = base * (it.gst || 0) / 100;
-    if (isInterState) { igst += tax; }
-    else { cgst += tax / 2; sgst += tax / 2; }
+  let taxable=0,cgst=0,sgst=0,igst=0;
+  items.forEach(it=>{
+    const base=(it.qty||0)*(it.rate||0);
+    taxable+=base;
+    const tax=base*(it.gst||0)/100;
+    if(isInterState){ igst+=tax; }
+    else { cgst+=tax/2; sgst+=tax/2; }
   });
-  const grand = taxable + cgst + sgst + igst;
-  H('tTax', fmt(taxable));
-  H('tCgst', fmt(cgst)); H('tSgst', fmt(sgst)); H('tIgst', fmt(igst));
-  H('tGrand', fmt(grand));
-  H('tWords', numToWords(Math.round(grand)) + ' Rupees Only');
+  const grand=taxable+cgst+sgst+igst;
+  H('tTax',fmt(taxable));
+  H('tCgst',fmt(cgst)); H('tSgst',fmt(sgst)); H('tIgst',fmt(igst));
+  H('tGrand',fmt(grand));
+  H('tWords',numToWords(Math.round(grand))+' Rupees Only');
 }
-
-window.ui=(i,k,v)=>{ items[i][k]=v; if(k==='qty'||k==='rate'||k==='gst') calcTotals(); };
-window.addItm=()=>{items.push({desc:'',hsn:'',qty:1,unit:'NOS',rate:0,gst:18});renderItms();};
-window.rmItm=i=>{if(items.length>1){items.splice(i,1);renderItms();}};
 
 /* ══════════════════════════════════════
    AI DESCRIPTIONS
@@ -1356,7 +1345,7 @@ window.sendWA=id=>{
 };
 
 /* ══════════════════════════════════════
-    PDF GENERATION — S.T.A.R.C. COMPLIANT
+   PDF GENERATION — GST COMPLIANT
 ══════════════════════════════════════ */
 window.genPDF=()=>{
   const custName=document.getElementById('tNm').value.trim();
@@ -1396,372 +1385,254 @@ window.genPDF=()=>{
     grandTotal:taxable+cgst+sgst+igst
   });
 };
-  
-function buildPDF(inv) {
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
-    const [W, M] = [210, 14];
-    const CW = W - 2 * M;
-    let y = 0;
 
-    // --- INTERNAL HELPERS ---
-    const setFont = (style = 'normal', size = 8, color = [20, 30, 20]) => {
-        pdf.setFont('helvetica', style);
-        pdf.setFontSize(size);
-        pdf.setTextColor(...color);
-    };
-    const drawText = (txt, x, y, align = 'left') => pdf.text(String(txt), x, y, { align });
+function buildPDF(inv){
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const W=210, M=12, CW=W-2*M;
 
-    // ── 1. HEADER & BRANDING ──
-    pdf.setFillColor(22, 52, 24).rect(0, 0, W, 42, 'F');
-    
-    setFont('bold', 16, [168, 196, 74]);
-    drawText(inv.supName || 'starc technologies', M, 18);
+  // Simple plain number formatter for PDF - no commas to avoid jsPDF issues
+  function pn(n){
+    return Number(n||0).toFixed(2);
+  }
+  // Indian formatted for display areas only
+  function pi(n){
+    const v=Number(n||0).toFixed(2);
+    const p=v.split('.');
+    let x=p[0]; const d=p[1];
+    if(x.length>3){
+      const l3=x.slice(-3); let r=x.slice(0,-3); let g='';
+      while(r.length>2){g=','+r.slice(-2)+g;r=r.slice(0,-2);}
+      x=r+g+','+l3;
+    }
+    return x+'.'+d;
+  }
 
-    setFont('normal', 7.5, [160, 190, 120]);
-    let yl = 24;
-    [inv.supGstin, inv.supPan].forEach(id => { if(id) { drawText(id, M, yl); yl += 5; } });
-    if (inv.supAddr) drawText(inv.supAddr.substring(0, 60), M, yl);
+  const stName = c => STATES.find(s=>s.code===c)?.name||c||'';
+  let y=0;
 
-    setFont('bold', 14, [255, 255, 255]);
-    drawText('TAX INVOICE', W - M, 14, 'right');
-    setFont('normal', 8, [168, 196, 74]);
-    const meta = [`No: ${inv.number}`, `Date: ${inv.date}`, `Due: ${inv.dueDate}`, `POS: ${STATES.find(s => s.code === inv.placeOfSupply)?.name || inv.placeOfSupply || ''}`];
-    meta.forEach((txt, i) => drawText(txt, W - M, 21 + (i * 6), 'right'));
+  // ── HEADER ──
+  pdf.setFillColor(22,52,24);
+  pdf.rect(0,0,W,44,'F');
 
-    y = 48;
+  // Logo or company name
+  let logoDrawn=false;
+  if(isPro&&cfg.logo){
+    try{ pdf.addImage(cfg.logo,'PNG',M,7,32,18); logoDrawn=true; }catch(e){}
+  }
+  if(!logoDrawn){
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(15); pdf.setTextColor(168,196,74);
+    pdf.text((inv.supName||'').substring(0,28),M,16);
+  }
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(160,190,120);
+  let yl = logoDrawn ? 28 : 22;
+  if(inv.supGstin){ pdf.text('GSTIN: '+inv.supGstin, M, yl); yl+=5; }
+  if(inv.supPan)  { pdf.text('PAN: '+inv.supPan, M, yl); yl+=5; }
+  if(inv.supAddr) { pdf.text(inv.supAddr.replace(/[\r\n]+/g,', ').substring(0,55), M, yl); }
 
-    // ── 2. INFO BOXES ──
-    pdf.setFillColor(240, 245, 235).rect(M, y, CW / 2 - 3, 32, 'F');
-    pdf.rect(M + CW / 2 + 3, y, CW / 2 - 3, 32, 'F');
-    setFont('bold', 7, [80, 110, 60]);
-    drawText('BILL TO', M + 3, y + 6);
-    drawText('SUPPLIER', M + CW / 2 + 6, y + 6);
-    setFont('bold', 10, [20, 30, 20]);
-    drawText((inv.custName || '').substring(0, 30), M + 3, y + 13);
-    drawText((inv.supName || '').substring(0, 30), M + CW / 2 + 6, y + 13);
-    setFont('normal', 7.5, [60, 75, 55]);
-    drawText(inv.custAddr || '', M + 3, y + 19);
-    drawText(inv.supState || 'Maharashtra', M + CW / 2 + 6, y + 19);
+  // TAX INVOICE — right
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(13); pdf.setTextColor(255,255,255);
+  pdf.text('TAX INVOICE', W-M, 13, {align:'right'});
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(7.5); pdf.setTextColor(168,196,74);
+  pdf.text('No: '+(inv.number||''), W-M, 20, {align:'right'});
+  pdf.text('Date: '+(inv.date||''), W-M, 27, {align:'right'});
+  pdf.text('Due: '+(inv.dueDate||''), W-M, 34, {align:'right'});
+  const posNm = stName(inv.placeOfSupply);
+  if(posNm) pdf.text('POS: '+posNm, W-M, 41, {align:'right'});
 
-    y += 38;
-    pdf.setFillColor(230, 240, 220).rect(M, y, CW, 7, 'F');
-    setFont('normal', 7, [60, 80, 50]);
-    drawText(`Tax Type: ${inv.isInterState ? 'IGST (Interstate)' : 'CGST+SGST (Intrastate)'}`, M + 3, y + 5);
-    
-    y += 12;
+  y=50;
 
-    // ── 3. ITEMS TABLE (CRORE-STABILIZED) ──
-    const isIG = inv.isInterState;
-    // Coordinates adjusted for maximum numeric clearance
-    const col = isIG 
-        ? { no: M+1, desc: M+7, hsn: M+75, qty: M+90, taxable: M+130, gst: M+165, tot: M+200 }
-        : { no: M+1, desc: M+7, hsn: M+68, qty: M+82, taxable: M+115, cgst: M+142, sgst: M+170, tot: M+200 };
+  // ── BILL TO / SUPPLIER ──
+  const boxH=34;
+  pdf.setFillColor(242,247,238); pdf.rect(M, y, CW/2-2, boxH, 'F');
+  pdf.setFillColor(236,244,230); pdf.rect(M+CW/2+2, y, CW/2-2, boxH, 'F');
 
-    pdf.setFillColor(22, 52, 24).rect(M, y, CW, 8, 'F');
-    setFont('bold', 6.5, [168, 196, 74]);
-    drawText("#", col.no, y + 5.5);
-    drawText("DESCRIPTION", col.desc, y + 5.5);
-    drawText("QTY", col.qty, y + 5.5, 'right');
-    drawText("TAXABLE", col.taxable, y + 5.5, 'right');
-    if(isIG) drawText("IGST", col.gst, y + 5.5, 'right');
-    else { drawText("CGST", col.cgst, y + 5.5, 'right'); drawText("SGST", col.sgst, y + 5.5, 'right'); }
-    drawText("TOTAL", col.tot, y + 5.5, 'right');
-    
-    y += 9;
+  // Bill To
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(6.5); pdf.setTextColor(80,110,60);
+  pdf.text('BILL TO', M+3, y+6);
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(10); pdf.setTextColor(15,25,15);
+  pdf.text((inv.custName||'').substring(0,26), M+3, y+13);
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(7.5); pdf.setTextColor(55,70,50);
+  let cy=y+20;
+  if(inv.custGstin){ pdf.text('GSTIN: '+inv.custGstin, M+3, cy); cy+=5; }
+  const custSt=stName(inv.custState);
+  if(custSt){ pdf.text('State: '+custSt, M+3, cy); cy+=5; }
+  if(inv.custAddr){
+    const al=pdf.splitTextToSize(inv.custAddr, CW/2-10);
+    al.slice(0,2).forEach(l=>{ if(cy<y+boxH-2){ pdf.text(l,M+3,cy); cy+=4; } });
+  }
 
-    setFont('normal', 8, [20, 25, 20]);
-    inv.items.forEach((it, idx) => {
-        const base = (it.qty || 0) * (it.rate || 0);
-        const tax = base * (it.gst || 0) / 100;
-        // Fix: Better description detection
-        const dText = (it.desc && it.desc.trim()) ? it.desc : 'Service Rendered';
-        const descLines = pdf.splitTextToSize(dText, isIG ? 55 : 45);
-        const rh = Math.max(8, descLines.length * 4.5);
+  // Supplier
+  const sx=M+CW/2+5;
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(6.5); pdf.setTextColor(80,110,60);
+  pdf.text('SUPPLIER', sx, y+6);
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(10); pdf.setTextColor(15,25,15);
+  pdf.text((inv.supName||'').substring(0,26), sx, y+13);
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(7.5); pdf.setTextColor(55,70,50);
+  let sy2=y+20;
+  if(inv.supGstin){ pdf.text('GSTIN: '+inv.supGstin, sx, sy2); sy2+=5; }
+  const supSt=stName(inv.supState);
+  if(supSt){ pdf.text('State: '+supSt, sx, sy2); sy2+=5; }
+  if(inv.supPan){ pdf.text('PAN: '+inv.supPan, sx, sy2); }
 
-        if (idx % 2 === 0) { pdf.setFillColor(247, 251, 243).rect(M, y - 1, CW, rh, 'F'); }
-        drawText(idx + 1, col.no, y + 4);
-        pdf.text(descLines, col.desc, y + 4);
-        drawText(it.qty || 0, col.qty, y + 4, 'right');
-        drawText(fN(base), col.taxable, y + 4, 'right');
+  y+=boxH+4;
 
-        if (isIG) drawText(`${it.gst}% ${fN(tax)}`, col.gst, y + 4, 'right');
-        else { 
-            drawText(`${it.gst/2}% ${fN(tax/2)}`, col.cgst, y + 4, 'right'); 
-            drawText(`${it.gst/2}% ${fN(tax/2)}`, col.sgst, y + 4, 'right'); 
+  // Tax info strip
+  pdf.setFillColor(228,240,220);
+  pdf.rect(M, y, CW, 7, 'F');
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(60,80,50);
+  const taxType = inv.isInterState ? 'IGST (Interstate)' : 'CGST + SGST (Intrastate)';
+  pdf.text('Tax Type: '+taxType+'    |    Supply: '+(inv.supplyType||'B2B')+'    |    RC: '+(inv.reverseCharge==='Y'?'Yes':'No'), M+3, y+5);
+  y+=11;
+
+  // ── ITEMS TABLE ──
+  // Simplified columns that FIT on A4 — no overflow
+  const isIG=inv.isInterState;
+
+  // Column definitions - total must be <= CW (186mm)
+  // #(5) Desc(55) HSN(18) Qty(12) Unit(12) Rate(22) Taxable(22) Tax(22) Total(22) = 190 - too wide
+  // Remove Unit column, merge HSN into desc
+  // #(5) Description(62) Qty(13) Rate(23) Taxable(23) Tax(30) Total(30) = 186 ✓
+  const cx = isIG
+    ? [M, M+5, M+67, M+80, M+103, M+126, M+156]
+    : [M, M+5, M+62, M+75, M+98,  M+121, M+146, M+168];
+  const hdrs = isIG
+    ? ['#','DESCRIPTION','QTY','RATE','TAXABLE','IGST','TOTAL']
+    : ['#','DESCRIPTION','QTY','RATE','TAXABLE','CGST','SGST','TOTAL'];
+
+  // Header row
+  pdf.setFillColor(22,52,24); pdf.rect(M, y, CW, 8, 'F');
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(6.5); pdf.setTextColor(168,196,74);
+  hdrs.forEach((h,i)=>pdf.text(h, cx[i]+1, y+5.5));
+  y+=9;
+
+  // Data rows
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(8); pdf.setTextColor(20,25,20);
+  inv.items.forEach((it,idx)=>{
+    const rh=9;
+    if(idx%2===0){ pdf.setFillColor(247,251,243); pdf.rect(M,y,CW,rh,'F'); }
+    const base=(it.qty||0)*(it.rate||0);
+    const tax=base*(it.gst||0)/100;
+    // Description with HSN
+    const descTxt=(it.desc||'').substring(0,28);
+    const hsnTxt=it.hsn?(' ['+it.hsn+']'):'';
+    const fullDesc=(descTxt+hsnTxt).substring(0,32);
+    if(isIG){
+      const row=[
+        String(idx+1), fullDesc,
+        pn(it.qty), pn(it.rate),
+        pn(base),
+        (it.gst||0)+'% '+pn(tax),
+        pn(base+tax)
+      ];
+      row.forEach((v,i)=>pdf.text(String(v), cx[i]+1, y+6));
+    } else {
+      const row=[
+        String(idx+1), fullDesc,
+        pn(it.qty), pn(it.rate),
+        pn(base),
+        (it.gst/2||0)+'% '+pn(tax/2),
+        (it.gst/2||0)+'% '+pn(tax/2),
+        pn(base+tax)
+      ];
+      row.forEach((v,i)=>pdf.text(String(v), cx[i]+1, y+6));
+    }
+    y+=rh;
+  });
+
+  y+=6;
+
+  // ── TOTALS BOX ──
+  const tX=M+CW*0.54;
+  const tW=W-M-tX;
+  pdf.setDrawColor(180,210,150); pdf.setLineWidth(0.25);
+  pdf.line(tX, y, W-M, y); y+=5;
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(8.5);
+
+  const showTots = isIG
+    ? [['Taxable Amount', pi(inv.taxable||0)],['IGST', pi(inv.igst||0)]]
+    : [['Taxable Amount', pi(inv.taxable||0)],['CGST', pi(inv.cgst||0)],['SGST', pi(inv.sgst||0)]];
+
+  showTots.forEach(([l,v])=>{
+    pdf.setTextColor(70,85,65); pdf.text(l, tX+2, y);
+    pdf.setTextColor(20,25,20); pdf.text(v, W-M-2, y, {align:'right'});
+    y+=6;
+  });
+
+  pdf.line(tX, y, W-M, y); y+=2;
+
+  // Grand total box
+  pdf.setFillColor(22,52,24);
+  pdf.rect(tX, y, W-M-tX, 11, 'F');
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(255,255,255);
+  pdf.text('TOTAL', tX+3, y+7.5);
+  // Use plain number - avoid any special chars
+  const grandStr = pi(inv.grandTotal||0);
+  pdf.text(grandStr, W-M-3, y+7.5, {align:'right'});
+  y+=16;
+
+  // Amount in words
+  pdf.setFont('helvetica','italic'); pdf.setFontSize(7.5); pdf.setTextColor(70,90,60);
+  pdf.text('Amount in Words: '+numToWords(Math.round(inv.grandTotal||0))+' Rupees Only', M, y);
+  y+=9;
+
+  // ── BANK DETAILS ──
+  if(inv.notes){
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(80,110,60);
+    pdf.text('BANK & PAYMENT DETAILS', M, y); y+=5;
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(8); pdf.setTextColor(50,65,45);
+    const nl=pdf.splitTextToSize(inv.notes, CW*0.58);
+    nl.slice(0,6).forEach(l=>{ pdf.text(l, M, y); y+=4.5; });
+  }
+
+  // ── UPI QR (Pro) ──
+  if(isPro&&cfg.upi){
+    try{
+      const wrap=document.createElement('div');
+      wrap.style.cssText='position:fixed;left:-9999px;background:white;padding:4px';
+      document.body.appendChild(wrap);
+      new QRCode(wrap,{
+        text:'upi://pay?pa='+cfg.upi+'&pn='+encodeURIComponent(cfg.biz||'')+'&cu=INR',
+        width:68,height:68,colorDark:'#163414',colorLight:'#ffffff'
+      });
+      setTimeout(()=>{
+        const img=wrap.querySelector('img');
+        if(img){
+          const qy=Math.min(y, 248); const qx=W-M-28;
+          pdf.addImage(img.src,'PNG',qx,qy,24,24);
+          pdf.setFont('helvetica','normal'); pdf.setFontSize(6); pdf.setTextColor(80,100,70);
+          pdf.text('Scan to Pay',qx+12,qy+26,{align:'center'});
+          pdf.text(cfg.upi.substring(0,20),qx+12,qy+30,{align:'center'});
         }
-        drawText(fN(base + tax), col.tot, y + 4, 'right');
-
-        y += rh;
-        if (y > 270) { pdf.addPage(); y = 20; }
-    });
-
-    // ── 4. SUMMARY (FIXED BOX & OVERFLOW) ──
-    y += 6;
-    const tX = M + CW * 0.45; // Wider box for Lakhs/Crores
-    const tW = W - M - tX;
-    pdf.setDrawColor(180, 210, 160).line(tX, y, W - M, y); y += 6;
-    
-    setFont('normal', 8.5, [70, 80, 65]);
-    drawText("Taxable Amount:", tX + 2, y);
-    drawText(fN(inv.taxable), W - M - 2, y, 'right');
-    
-    y += 6;
-    drawText(isIG ? "IGST:" : "CGST+SGST:", tX + 2, y);
-    drawText(fN(isIG ? inv.igst : (inv.cgst + inv.sgst)), W - M - 2, y, 'right');
-
-    y += 6;
-    pdf.setFillColor(22, 52, 24).rect(tX, y, tW, 11, 'F'); // Green Total Box
-    setFont('bold', 10.5, [255, 255, 255]);
-    drawText('TOTAL', tX + 3, y + 7.5);
-    drawText(fmt(inv.grandTotal), W - M - 2, y + 7.5, 'right');
-
-    y += 18;
-    setFont('italic', 7.5, [70, 90, 60]);
-    drawText(`Amount in Words: ${numToWords(Math.round(inv.grandTotal))} Rupees Only`, M, y);
-
-    // ── 5. ASYNC MODULES (UPI & SIG) ──
-    if (inv.notes) {
-        y += 10; setFont('bold', 7.5, [80, 110, 60]); drawText('BANK & PAYMENT DETAILS:', M, y);
-        y += 5; setFont('normal', 8, [50, 65, 45]);
-        const nl = pdf.splitTextToSize(inv.notes, CW * 0.55);
-        nl.forEach(l => { drawText(l, M, y); y += 4.5; });
-    }
-
-    if (isPro && cfg.upi) {
-        const upiUri = `upi://pay?pa=${cfg.upi}&pn=${encodeURIComponent(cfg.biz || 'STARC')}&cu=INR&am=${inv.grandTotal.toFixed(2)}`;
-        const qrWrapper = document.body.appendChild(document.createElement('div'));
-        qrWrapper.style.cssText = 'position:fixed; left:-999px;';
-        new QRCode(qrWrapper, { text: upiUri, width: 128, height: 128, correctLevel: QRCode.CorrectLevel.H });
-        setTimeout(() => {
-            const qrImg = qrWrapper.querySelector('img');
-            if (qrImg) pdf.addImage(qrImg.src, 'PNG', W - M - 32, 242, 30, 30);
-            document.body.removeChild(qrWrapper);
-        }, 300);
-    }
-
-    if (isPro && cfg.sig) {
-        pdf.addImage(cfg.sig, 'PNG', W - M - 52, 252, 46, 16);
-        setFont('normal', 7, [80, 100, 70]);
-        drawText('Authorised Signatory', W - M - 52, 276);
-    }
-
-    // ── 6. FOOTER & SAVE ──
-    pdf.setFillColor(232, 242, 224).rect(0, 285, W, 12, 'F');
-    setFont('normal', 7, [80, 110, 60]);
-    const fTxt = isPro ? (inv.supName || 'starc technologies') : 'Generated free by Sentinel Invoice';
-    drawText(`${fTxt} | invoice.starc-solutions.tech | Powered by S.T.A.R.C. Tech`, W / 2, 292, 'center');
-
-    const safeInvNo = (inv.number || 'INV').replace(/[^a-z0-9]/gi, '-');
-    const safeCust = (inv.custName || 'customer').replace(/[^a-z0-9]/gi, '_');
-    pdf.save(`${safeInvNo}_${safeCust}.pdf`);
-    toast('✅ Sentinel Broadcast Complete');
-}
-
-/* ══════════════════════════════════════
-    CUSTOMERS
-══════════════════════════════════════ */
-window.openAddCli=()=>{
-  ['cN','cGst','cPh','cEm','cAd'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('cSt').value='';
-  document.getElementById('cliMo').classList.add('on');
-};
-window.closeCli=()=>document.getElementById('cliMo').classList.remove('on');
-
-window.saveCli=async()=>{
-  const name=document.getElementById('cN').value.trim();
-  if(!name){ toast('Name required'); return; }
-  showL('Saving…');
-  try {
-    const c={uid:user.uid,name,
-      gstin:document.getElementById('cGst').value.toUpperCase(),
-      state:document.getElementById('cSt').value,
-      phone:document.getElementById('cPh').value,
-      email:document.getElementById('cEm').value,
-      address:document.getElementById('cAd').value,
-      createdAt:firebase.firestore.FieldValue.serverTimestamp()
-    };
-    const ref=await db.collection('customers').add(c);
-    customers.push({id:ref.id,...c});
-    closeCli(); hideL(); renderClis(); buildCliSel();
-    toast('✅ Customer saved!');
-  } catch(e){ hideL(); toast('Error saving.'); }
-};
-
-function renderClis(){
-  H('cliCt',`${customers.length} customer${customers.length!==1?'s':''}`);
-  const g=document.getElementById('cliGrid');
-  g.innerHTML=customers.length?customers.map(c=>`
-    <div class="cc" onclick="useCli('${c.id}')">
-      <div class="ca">${c.name[0].toUpperCase()}</div>
-      <div class="cn">${c.name}</div>
-      <div class="ce">${c.email||'No email'}</div>
-      ${c.gstin?`<div class="cg-">${c.gstin}</div>`:''}
-      <div class="cm">
-        <span>${c.phone||'—'}</span>
-        <span style="color:var(--leaf)">${invoices.filter(i=>i.custName===c.name).length} inv</span>
-      </div>
-    </div>
-  `).join(''):
-  `<div class="empty" style="grid-column:1/-1"><div class="ei">👥</div><p>No customers yet.<br>Add customers to auto-fill invoices.</p></div>`;
-}
-
-window.useCli=id=>{
-  const c=customers.find(x=>x.id===id); if(!c) return;
-  go('invoice');
-  setTimeout(()=>{
-    V('tNm',c.name); V('tPh',c.phone||''); V('tEm',c.email||''); V('tAddr',c.address||'');
-    if(c.gstin){ const el=document.getElementById('tGstin'); el.value=c.gstin; validateGstin(el,'tGstInd'); }
-    if(c.state) document.getElementById('tState').value=c.state;
-    detectGstType();
-  },120);
-};
-
-function buildCliSel(){
-  const s=document.getElementById('cliSel'); if(!s) return;
-  s.innerHTML='<option value="">Saved customers…</option>'+
-    customers.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-}
-
-window.fillCli=()=>{
-  const id=document.getElementById('cliSel').value;
-  const c=customers.find(x=>x.id===id); if(!c) return;
-  V('tNm',c.name); V('tPh',c.phone||''); V('tEm',c.email||''); V('tAddr',c.address||'');
-  if(c.gstin){ const el=document.getElementById('tGstin'); el.value=c.gstin; validateGstin(el,'tGstInd'); }
-  if(c.state) document.getElementById('tState').value=c.state;
-  detectGstType();
-};
-
-/* ══════════════════════════════════════
-    ITEMS CATALOG
-══════════════════════════════════════ */
-window.openAddItmCat=()=>{
-  ['imNm','imHsn','imRate'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('imGst').value='18';
-  document.getElementById('imUnit').value='NOS';
-  document.getElementById('itmMo').classList.add('on');
-};
-window.closeItmCat=()=>document.getElementById('itmMo').classList.remove('on');
-
-window.saveItmCat=async()=>{
-  const name=document.getElementById('imNm').value.trim();
-  if(!name){ toast('Item name required'); return; }
-  showL('Saving…');
-  try {
-    const it={uid:user.uid,name,
-      hsn:document.getElementById('imHsn').value,
-      rate:parseFloat(document.getElementById('imRate').value)||0,
-      gst:parseInt(document.getElementById('imGst').value)||18,
-      unit:document.getElementById('imUnit').value,
-      createdAt:firebase.firestore.FieldValue.serverTimestamp()
-    };
-    const ref=await db.collection('catalog').add(it);
-    catalog.push({id:ref.id,...it});
-    closeItmCat(); hideL(); renderCatalog();
-    toast('✅ Item saved to catalog!');
-  } catch(e){ hideL(); toast('Error saving.'); }
-};
-
-function renderCatalog(){
-  H('itmCt',`${catalog.length} saved item${catalog.length!==1?'s':''}`);
-  const g=document.getElementById('itmGrid');
-  g.innerHTML=catalog.length?catalog.map(c=>`
-    <div class="ic" onclick="addFromCat('${c.id}')">
-      <div class="ic-name">${c.name}</div>
-      <div class="ic-hsn">HSN/SAC: ${c.hsn||'—'}</div>
-      <div class="ic-rate">${fmt(c.rate)}<span style="font-family:'DM Sans';font-size:12px;color:var(--muted)"> / ${c.unit||'NOS'}</span></div>
-      <div class="ic-gst">GST: ${c.gst||0}%</div>
-    </div>
-  `).join(''):
-  `<div class="empty" style="grid-column:1/-1"><div class="ei">📦</div><p>No items saved yet.<br>Add items to reuse on future invoices.</p></div>`;
-}
-
-window.addFromCat=id=>{
-  const c=catalog.find(x=>x.id===id); if(!c) return;
-  go('invoice');
-  setTimeout(()=>{
-    items.push({desc:c.name,hsn:c.hsn||'',qty:1,unit:c.unit||'NOS',rate:c.rate||0,gst:c.gst||18});
-    renderItms(); toast(`✅ "${c.name}" added to invoice`);
-  },120);
-};
-
-/* ══════════════════════════════════════
-   RAZORPAY
-══════════════════════════════════════ */
-window.selPl=p=>{
-  planSel=p;
-  document.getElementById('pcM').classList.toggle('sel',p==='m');
-  document.getElementById('pcY').classList.toggle('sel',p==='y');
-};
-window.openUpg=()=>document.getElementById('upgMo').classList.add('on');
-window.closeUpg=()=>document.getElementById('upgMo').classList.remove('on');
-
-window.doRzp=()=>{
-  if(!RZP_KEY||RZP_KEY==='YOUR_RAZORPAY_KEY_ID'){ toast('⚠ Paste your Razorpay Key ID in the code first'); return; }
-  if(!window.Razorpay){ toast('⚠ Razorpay script not loaded. Check internet connection.'); return; }
-  const amt=planSel==='m'?9900:79900;
-  const desc=planSel==='m'?'Pro Monthly':'Pro Yearly';
-  try {
-    new window.Razorpay({
-      key:RZP_KEY, amount:amt, currency:'INR',
-      name:'STARC Solutions', description:desc,
-      prefill:{name:user.displayName||'',email:user.email||''},
-      theme:{color:'#7fa832'},
-      handler(r){
-        isPro=true; cfg.isPro=true; cfg.rzpId=r.razorpay_payment_id;
-        localStorage.setItem(`starc_cfg_${user.uid}`,JSON.stringify(cfg));
-        applyPro(); closeUpg();
-        toast('🎉 Welcome to Pro! All features unlocked!');
-      },
-      modal:{ondismiss:()=>toast('Payment cancelled')}
-    }).open();
-  } catch(e){ toast('Razorpay error. Check your key.'); console.error(e); }
-};
-
-function applyPro(){
-  document.getElementById('uPl').textContent='PRO ✦';
-  document.getElementById('uPl').style.color='var(--gold)';
-  const b=document.getElementById('proBnr'); if(b) b.style.display='none';
-}
-
-/* ══════════════════════════════════════
-   FREE LIMIT
-══════════════════════════════════════ */
-function updateFree(){
-  const n=document.getElementById('freeNote'); if(!n) return;
-  if(isPro){ n.textContent=''; return; }
-  const used=invoices.filter(i=>i.status!=='draft').length;
-  n.textContent=`${used} / ${FREE_LIMIT} free invoices used`;
-  n.style.color=used>=FREE_LIMIT?'var(--red)':'var(--muted)';
-}
-
-/* ══════════════════════════════════════
-   NUMBER TO WORDS (Indian system)
-══════════════════════════════════════ */
-function numToWords(n){
-  if(!n||n===0) return 'Zero';
-  const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen','Seventeen','Eighteen','Nineteen'];
-  const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
-  function tw(n){
-    if(n<20) return ones[n];
-    return tens[Math.floor(n/10)]+(n%10?' '+ones[n%10]:'');
+        document.body.removeChild(wrap);
+      },500);
+    }catch(e){}
   }
-  function toCr(n){
-    if(n===0) return '';
-    if(n<100) return tw(n);
-    return ones[Math.floor(n/100)]+' Hundred'+(n%100?' '+tw(n%100):'');
+
+  // ── SIGNATURE (Pro) ──
+  if(isPro&&cfg.sig){
+    try{
+      const sigX=W-M-52; const sigY=252;
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(7); pdf.setTextColor(80,100,70);
+      pdf.text('For '+(inv.supName||'').substring(0,24), sigX, sigY);
+      pdf.addImage(cfg.sig,'PNG',sigX,sigY+2,46,16);
+      pdf.setDrawColor(150,170,130); pdf.line(sigX,sigY+20,W-M,sigY+20);
+      pdf.text('Authorised Signatory', sigX, sigY+24);
+    }catch(e){}
   }
-  let res='';
-  if(n>=10000000){ res+=toCr(Math.floor(n/10000000))+' Crore '; n%=10000000; }
-  if(n>=100000)  { res+=toCr(Math.floor(n/100000))+' Lakh '; n%=100000; }
-  if(n>=1000)    { res+=toCr(Math.floor(n/1000))+' Thousand '; n%=1000; }
-  if(n>0)        { res+=toCr(n); }
-  return res.trim();
+
+  // ── FOOTER ──
+  pdf.setFillColor(232,242,224); pdf.rect(0,285,W,12,'F');
+  pdf.setFontSize(7); pdf.setTextColor(80,110,60); pdf.setFont('helvetica','normal');
+  const footerTxt = isPro
+    ? (inv.supName||'')+'  |  invoice.starc-solutions.tech  |  Computer generated TAX INVOICE'
+    : 'Generated by Sentinel Invoice  |  invoice.starc-solutions.tech  |  Upgrade Pro to remove watermark';
+  pdf.text(footerTxt, W/2, 292, {align:'center'});
+
+  pdf.save((inv.number||'invoice')+'_'+(inv.custName||'customer').replace(/\s+/g,'_')+'.pdf');
+  toast('PDF downloaded!');
 }
 
-/* ══════════════════════════════════════
-   UTILS
-══════════════════════════════════════ */
 function fmt(n){ return '₹'+fN(n); }
 function fN(n){
   const num = Number(n||0);
@@ -1801,6 +1672,7 @@ function hideL(){ document.getElementById('ldr').classList.remove('on'); }
 /* ── INIT ── */
 initForm();
 }); // end DOMContentLoaded
+
 </script>
 
 <script>
@@ -2076,7 +1948,7 @@ window.prevInv = id => {
         <div class="pt-row grand"><span>Total Payable</span><span>₹${fN(inv.grandTotal||0)}</span></div>
       </div>
     </div>
-    ${inv.notes?`<div class="prev-notes"><strong>Bank & Payment Details:</strong><br>${inv.notes.split('\n').join(' ')}</div>`:''}
+    ${inv.notes?`<div class="prev-notes"><strong>Bank & Payment Details:</strong><br>${inv.notes.replace(/[\r\n]+/g,' ')}</div>`:''}
     <div class="prev-words"><em>Amount in Words: ${numToWords(Math.round(inv.grandTotal||0))} Rupees Only</em></div>
     ${watermark}
     <div class="prev-foot">This is a computer generated TAX INVOICE · Sentinel Invoice · invoice.starc-solutions.tech</div>
@@ -2110,6 +1982,108 @@ function genInvNo(){
   }
   return candidate;
 }
+
+
+/* ══════════════════════════════════════
+   RAZORPAY
+══════════════════════════════════════ */
+window.selPl = p => {
+  planSel=p;
+  document.getElementById('pcM').classList.toggle('sel',p==='m');
+  document.getElementById('pcY').classList.toggle('sel',p==='y');
+};
+window.openUpg  = () => document.getElementById('upgMo').classList.add('on');
+window.closeUpg = () => document.getElementById('upgMo').classList.remove('on');
+
+window.doRzp = () => {
+  if(!RZP_KEY||RZP_KEY==='YOUR_RAZORPAY_KEY_ID'){ toast('Paste your Razorpay Key ID in the code first'); return; }
+  if(!window.Razorpay){ toast('Razorpay script not loaded. Check internet.'); return; }
+  const amt = planSel==='m' ? 9900 : 79900;
+  const desc = planSel==='m' ? 'Sentinel Invoice Pro — Monthly' : 'Sentinel Invoice Pro — Yearly';
+  try {
+    new window.Razorpay({
+      key: RZP_KEY, amount: amt, currency: 'INR',
+      name: 'STARC Solutions', description: desc,
+      prefill: { name: user?.displayName||'', email: user?.email||'' },
+      theme: { color: '#7fa832' },
+      handler(r){
+        isPro=true; cfg.isPro=true; cfg.rzpId=r.razorpay_payment_id;
+        localStorage.setItem('starc_cfg_'+user.uid, JSON.stringify(cfg));
+        applyPro(); closeUpg();
+        toast('Welcome to Pro! All features unlocked!');
+      },
+      modal: { ondismiss: ()=>toast('Payment cancelled') }
+    }).open();
+  } catch(e){ toast('Razorpay error. Check your key.'); console.error(e); }
+};
+
+function applyPro(){
+  isPro=true;
+  document.getElementById('uPl').textContent='PRO';
+  document.getElementById('uPl').style.color='var(--gold)';
+  const b=document.getElementById('proBnr'); if(b) b.style.display='none';
+}
+
+/* ══════════════════════════════════════
+   SAVE CUSTOMER
+══════════════════════════════════════ */
+window.openAddCli = () => {
+  ['cN','cGst','cPh','cEm','cAd'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('cSt').value='';
+  document.getElementById('cliMo').classList.add('on');
+};
+window.closeCli = () => document.getElementById('cliMo').classList.remove('on');
+
+window.saveCli = async () => {
+  const name = document.getElementById('cN').value.trim();
+  if(!name){ toast('Name required'); return; }
+  showL('Saving…');
+  try {
+    const c = { uid:user.uid, name,
+      gstin: document.getElementById('cGst').value.toUpperCase(),
+      state: document.getElementById('cSt').value,
+      phone: document.getElementById('cPh').value,
+      email: document.getElementById('cEm').value,
+      address: document.getElementById('cAd').value,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    const ref = await db.collection('customers').add(c);
+    customers.push({id:ref.id,...c});
+    closeCli(); hideL(); renderClis(); buildCliSel();
+    toast('Customer saved!');
+  } catch(e){ hideL(); toast('Error saving customer.'); console.error(e); }
+};
+
+window.saveItmCat = async () => {
+  const name = document.getElementById('imNm').value.trim();
+  if(!name){ toast('Item name required'); return; }
+  showL('Saving…');
+  try {
+    const it = { uid:user.uid, name,
+      hsn: document.getElementById('imHsn').value,
+      rate: parseFloat(document.getElementById('imRate').value)||0,
+      gst: parseInt(document.getElementById('imGst').value)||18,
+      unit: document.getElementById('imUnit').value,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    const ref = await db.collection('catalog').add(it);
+    catalog.push({id:ref.id,...it});
+    closeItmCat(); hideL(); renderCatalog();
+    toast('Item saved to catalog!');
+  } catch(e){ hideL(); toast('Error saving item.'); console.error(e); }
+};
+window.openAddItmCat = () => {
+  ['imNm','imHsn','imRate'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('imGst').value='18';
+  document.getElementById('imUnit').value='NOS';
+  document.getElementById('itmMo').classList.add('on');
+};
+window.closeItmCat = () => document.getElementById('itmMo').classList.remove('on');
+window.addFromCat = id => {
+  const c=catalog.find(x=>x.id===id); if(!c) return;
+  go('invoice');
+  setTimeout(()=>{ items.push({desc:c.name,hsn:c.hsn||'',qty:1,unit:c.unit||'NOS',rate:c.rate||0,gst:c.gst||18}); renderItms(); toast(c.name+' added'); }, 150);
+};
 
 </script>
 </body>
