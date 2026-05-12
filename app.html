@@ -755,13 +755,13 @@ const FB = {
   authDomain:        "starc-invoice.firebaseapp.com",
   projectId:         "starc-invoice",
   storageBucket:     "starc-invoice.firebasestorage.app",
-  messagingSenderId: "370202874783",
+  messagingSenderId: "370202874783"",
   appId:             "1:370202874783:web:b2668e28ec24319178a3aa"
 };
 /* ═══════════════════════════════════════
    ►  YOUR RAZORPAY KEY_ID
 ═══════════════════════════════════════ */
-const RZP_KEY = "rzp_live_Slajx7K1jJBgd3";
+const RZP_KEY = "rzp_live_Slajx7K1jJBgd3"";
 
 const FREE_LIMIT = 5;
 
@@ -772,6 +772,11 @@ const db   = firebase.firestore();
 
 let user=null, invoices=[], customers=[], catalog=[], items=[];
 let isPro=false, cfg={}, planSel='m', curFilter='all';
+// Expose mutable state to window so inline onclick handlers can access them
+Object.defineProperty(window,'items',{get:()=>items,set:v=>{items=v}});
+Object.defineProperty(window,'catalog',{get:()=>catalog,set:v=>{catalog=v}});
+Object.defineProperty(window,'isInterState',{get:()=>isInterState,set:v=>{isInterState=v}});
+Object.defineProperty(window,'isPro',{get:()=>isPro,set:v=>{isPro=v}});
 let logoData=null, sigData=null, upiQrData=null;
 
 /* ══════════════════════════════════════
@@ -1232,6 +1237,7 @@ function renderItms(){
   }).join('');
   calcTotals();
 }
+window.renderItms = renderItms;
 
 window.ui=(i,k,v)=>{
   items[i][k]=v;
@@ -1252,7 +1258,7 @@ window.fillCatItm=(rowIdx,catId)=>{
 /* ══════════════════════════════════════
    FAST ROW UPDATE (no full re-render)
 ══════════════════════════════════════ */
-function updateRow(i){
+function updateRow(i){ window.updateRow=updateRow;
   const it = items[i];
   const taxable = (it.qty||0)*(it.rate||0);
   const gstAmt = taxable*(it.gst||0)/100;
@@ -1292,6 +1298,7 @@ function calcTotals(){
   H2('tGrand', fmt(grand));
   H2('tWords',numToWords(Math.round(grand))+' Rupees Only');
 }
+window.calcTotals = calcTotals;
 
 /* ══════════════════════════════════════
    AI DESCRIPTIONS
